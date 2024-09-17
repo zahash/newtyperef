@@ -1,0 +1,69 @@
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, Fields, ItemStruct, Result, Type,
+};
+
+#[proc_macro_attribute]
+pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
+    let attrs = parse_macro_input!(attrs as Attrs);
+    let item_struct = parse_macro_input!(item as ItemStruct);
+
+    let struct_name = &item_struct.ident;
+    let struct_vis = &item_struct.vis;
+
+    let (inner_ty, inner_vis) = {
+        let Fields::Unnamed(fields) = &item_struct.fields else {
+            return syn::Error::new_spanned(&item_struct, "Expected tuple struct")
+                .to_compile_error()
+                .into();
+        };
+
+        if fields.unnamed.len() != 1 {
+            return syn::Error::new_spanned(&item_struct, "Expected a single field in the struct")
+                .to_compile_error()
+                .into();
+        }
+
+        (&fields.unnamed[0].ty, &fields.unnamed[0].vis)
+    };
+
+    let ref_name = syn::Ident::new(&format!("{}Ref", struct_name), struct_name.span());
+    let refmut_name = syn::Ident::new(&format!("{}RefMut", struct_name), struct_name.span());
+
+    let ref_ty = attrs.ref_ty.unwrap_or_else(|| inner_ty.clone());
+
+    quote! {
+        #item_struct
+
+        #struct_vis struct #ref_name<'a>(#inner_vis &'a #ref_ty);
+        #struct_vis struct #refmut_name<'a>(#inner_vis &'a mut #ref_ty);
+
+        impl #struct_name {
+            pub fn as_ref<'a>(&'a self) -> #ref_name<'a> {
+                #ref_name(&self.0)
+            }
+
+            pub fn as_mut<'a>(&'a mut self) -> #refmut_name<'a> {
+                #refmut_name(&mut self.0)
+            }
+        }
+    }
+    .into()
+}
+
+struct Attrs {
+    ref_ty: Option<Type>,
+}
+
+impl Parse for Attrs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ref_ty = match input.is_empty() {
+            true => None,
+            false => Some(input.parse()?),
+        };
+
+        Ok(Self { ref_ty })
+    }
+}
