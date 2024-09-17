@@ -13,7 +13,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let struct_name = &item_struct.ident;
     let struct_vis = &item_struct.vis;
 
-    let (inner_ty, inner_vis) = {
+    let inner_ty = {
         let Fields::Unnamed(fields) = &item_struct.fields else {
             return syn::Error::new_spanned(&item_struct, "Expected tuple struct")
                 .to_compile_error()
@@ -26,7 +26,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
                 .into();
         }
 
-        (&fields.unnamed[0].ty, &fields.unnamed[0].vis)
+        &fields.unnamed[0].ty
     };
 
     let ref_name = syn::Ident::new(&format!("{}Ref", struct_name), struct_name.span());
@@ -37,9 +37,6 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
     quote! {
         #item_struct
 
-        #struct_vis struct #ref_name<'a>(#inner_vis &'a #ref_ty);
-        #struct_vis struct #refmut_name<'a>(#inner_vis &'a mut #ref_ty);
-
         impl #struct_name {
             pub fn as_ref<'a>(&'a self) -> #ref_name<'a> {
                 #ref_name(&self.0)
@@ -47,6 +44,31 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
 
             pub fn as_mut<'a>(&'a mut self) -> #refmut_name<'a> {
                 #refmut_name(&mut self.0)
+            }
+        }
+
+        #struct_vis struct #ref_name<'a>(&'a #ref_ty);
+        #struct_vis struct #refmut_name<'a>(&'a mut #ref_ty);
+
+        impl<'a> std::ops::Deref for #ref_name<'a> {
+            type Target = #ref_ty;
+
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+
+        impl<'a> std::ops::Deref for #refmut_name<'a> {
+            type Target = #ref_ty;
+
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+
+        impl<'a> std::ops::DerefMut for #refmut_name<'a> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.0
             }
         }
     }
