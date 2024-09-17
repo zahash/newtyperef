@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, Fields, ItemStruct, Result, Type,
@@ -29,8 +29,8 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
         &fields.unnamed[0].ty
     };
 
-    let ref_name = syn::Ident::new(&format!("{}Ref", struct_name), struct_name.span());
-    let refmut_name = syn::Ident::new(&format!("{}RefMut", struct_name), struct_name.span());
+    let ref_name = format_ident!("{}Ref", struct_name);
+    let refmut_name = format_ident!("{}RefMut", struct_name);
 
     let ref_ty = attrs.ref_ty.unwrap_or_else(|| inner_ty.clone());
 
