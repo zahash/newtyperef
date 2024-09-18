@@ -56,7 +56,7 @@ fn test_string_str_str() {
     let mut val = StringStrStr("test_string_str_str".into());
 
     let ref_: StringStrStrRef<'_> = val.as_ref();
-    let _ = ref_.deref();
+    let _: &str = ref_.deref();
 
     let mut mut_: StringStrStrRefMut<'_> = val.as_mut();
     let _: &str = mut_.deref();
