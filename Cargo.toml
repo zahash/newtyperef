@@ -11,5 +11,5 @@ repository = "https://github.com/zahash/newtyperef/"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2", features = ["full", "extra-traits"] }
+syn = { version = "2", features = ["full"] }
 quote = "1"
