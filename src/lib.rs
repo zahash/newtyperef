@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, Fields, ItemStruct, Result, Type,
+    parse_macro_input, Fields, ItemStruct, Result, Token, Type,
 };
 
 #[proc_macro_attribute]
@@ -33,6 +33,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let refmut_name = format_ident!("{}RefMut", struct_name);
 
     let ref_ty = attrs.ref_ty.unwrap_or_else(|| inner_ty.clone());
+    let mut_ty = attrs.mut_ty.unwrap_or_else(|| inner_ty.clone());
 
     quote! {
         #item_struct
@@ -48,7 +49,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         #struct_vis struct #ref_name<'a>(&'a #ref_ty);
-        #struct_vis struct #refmut_name<'a>(&'a mut #ref_ty);
+        #struct_vis struct #refmut_name<'a>(&'a mut #mut_ty);
 
         impl<'a> std::ops::Deref for #ref_name<'a> {
             type Target = #ref_ty;
@@ -59,7 +60,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl<'a> std::ops::Deref for #refmut_name<'a> {
-            type Target = #ref_ty;
+            type Target = #mut_ty;
 
             fn deref(&self) -> &Self::Target {
                 self.0
@@ -77,15 +78,35 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
 
 struct Attrs {
     ref_ty: Option<Type>,
+    mut_ty: Option<Type>,
 }
 
 impl Parse for Attrs {
     fn parse(input: ParseStream) -> Result<Self> {
-        let ref_ty = match input.is_empty() {
-            true => None,
-            false => Some(input.parse()?),
-        };
+        let mut ref_ty = None;
+        let mut mut_ty = None;
 
-        Ok(Self { ref_ty })
+        while !input.is_empty() {
+            if input.peek(Token![ref]) {
+                input.parse::<Token![ref]>()?;
+                input.parse::<Token![=]>()?;
+                let ty: Type = input.parse()?;
+                ref_ty = Some(ty);
+            } else if input.peek(Token![mut]) {
+                input.parse::<Token![mut]>()?;
+                input.parse::<Token![=]>()?;
+                let ty: Type = input.parse()?;
+                mut_ty = Some(ty);
+            } else if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else {
+                return Err(syn::Error::new(
+                    input.span(),
+                    "Unexpected token in newtyperef attribute",
+                ));
+            }
+        }
+
+        Ok(Attrs { ref_ty, mut_ty })
     }
 }

@@ -3,19 +3,31 @@
 use newtyperef::newtyperef;
 
 #[newtyperef]
-pub struct UsizeUsize(pub usize);
+pub struct UsizeUsizeUsize(pub usize);
 
 #[newtyperef]
-pub struct StringString(pub String);
+pub struct StringStringString(pub String);
 
-#[newtyperef(str)]
-pub struct StringStr(pub String);
+#[newtyperef(ref = str)]
+pub struct StringStrString(pub String);
+
+#[newtyperef(mut = str)]
+pub struct StringStringStr(pub String);
+
+#[newtyperef(ref = str, mut = str)]
+pub struct StringStrStr(pub String);
 
 #[newtyperef]
-pub struct VecUsizeVecUsize(pub Vec<usize>);
+pub struct VecUsizeVecUsizeVecUsize(pub Vec<usize>);
 
 #[newtyperef]
-pub struct VecStringVecString(pub Vec<String>);
+pub struct VecStringVecStringVecString(pub Vec<String>);
 
-#[newtyperef([String])]
-pub struct VecStringSliceString(pub Vec<String>);
+#[newtyperef(ref = [String])]
+pub struct VecStringSliceStringVecString(pub Vec<String>);
+
+#[newtyperef(mut = [String])]
+pub struct VecStringVecStringSliceString(pub Vec<String>);
+
+#[newtyperef(ref = [String], mut = [String])]
+pub struct VecStringSliceStringSliceString(pub Vec<String>);
