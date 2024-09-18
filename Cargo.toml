@@ -1,9 +1,9 @@
 [package]
 name = "newtyperef"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["zahash <zahash.z@gmail.com>"]
-description = "newtype ref"
+description = "generate custom newtype reference types"
 license = "MIT"
 repository = "https://github.com/zahash/newtyperef/"
 
