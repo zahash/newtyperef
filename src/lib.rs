@@ -1,8 +1,10 @@
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, Fields, ItemStruct, Result, Token, Type,
+    parse_macro_input, Fields, GenericParam, ItemStruct, Lifetime, LifetimeParam, Result, Token,
+    Type,
 };
 
 #[proc_macro_attribute]
@@ -12,6 +14,8 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
 
     let struct_name = &item_struct.ident;
     let struct_vis = &item_struct.vis;
+    let generics = &item_struct.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let inner_ty = {
         let Fields::Unnamed(fields) = &item_struct.fields else {
@@ -35,23 +39,30 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let ref_ty = attrs.ref_ty.unwrap_or_else(|| inner_ty.clone());
     let mut_ty = attrs.mut_ty.unwrap_or_else(|| inner_ty.clone());
 
+    let mut ref_generics = generics.clone();
+    ref_generics.params.insert(
+        0,
+        GenericParam::Lifetime(LifetimeParam::new(Lifetime::new("'__a", Span::call_site()))),
+    );
+    let (ref_impl_generics, ref_ty_generics, ref_where_clause) = ref_generics.split_for_impl();
+
     quote! {
         #item_struct
 
-        impl #struct_name {
-            pub fn as_ref<'a>(&'a self) -> #ref_name<'a> {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
+            pub fn as_ref<'__a>(&'__a self) -> #ref_name #ref_impl_generics {
                 #ref_name(&self.0)
             }
 
-            pub fn as_mut<'a>(&'a mut self) -> #refmut_name<'a> {
+            pub fn as_mut<'__a>(&'__a mut self) -> #refmut_name #ref_impl_generics {
                 #refmut_name(&mut self.0)
             }
         }
 
-        #struct_vis struct #ref_name<'a>(&'a #ref_ty);
-        #struct_vis struct #refmut_name<'a>(&'a mut #mut_ty);
+        #struct_vis struct #ref_name #ref_impl_generics (&'__a #ref_ty) #ref_where_clause;
+        #struct_vis struct #refmut_name #ref_impl_generics (&'__a mut #mut_ty) #ref_where_clause;
 
-        impl<'a> std::ops::Deref for #ref_name<'a> {
+        impl #ref_impl_generics std::ops::Deref for #ref_name #ref_ty_generics #ref_where_clause {
             type Target = #ref_ty;
 
             fn deref(&self) -> &Self::Target {
@@ -59,7 +70,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl<'a> std::ops::Deref for #refmut_name<'a> {
+        impl #ref_impl_generics std::ops::Deref for #refmut_name #ref_ty_generics #ref_where_clause {
             type Target = #mut_ty;
 
             fn deref(&self) -> &Self::Target {
@@ -67,7 +78,7 @@ pub fn newtyperef(attrs: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl<'a> std::ops::DerefMut for #refmut_name<'a> {
+        impl #ref_impl_generics std::ops::DerefMut for #refmut_name #ref_ty_generics #ref_where_clause {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 self.0
             }

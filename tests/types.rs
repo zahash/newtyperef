@@ -31,3 +31,9 @@ pub struct VecStringVecStringSliceString(pub Vec<String>);
 
 #[newtyperef(ref = [String], mut = [String])]
 pub struct VecStringSliceStringSliceString(pub Vec<String>);
+
+#[newtyperef]
+pub struct Generic<T>(pub T);
+
+#[newtyperef(ref = [T])]
+pub struct GenericItems<T>(pub Vec<T>);
